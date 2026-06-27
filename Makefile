@@ -9,6 +9,5 @@ include $(THEOS)/makefiles/common.mk
 TWEAK_NAME = MemoOverlay
 MemoOverlay_FILES = Tweak.x
 MemoOverlay_FRAMEWORKS = UIKit Foundation
-MemoOverlay_LIBRARIES = ellekit
 
 include $(THEOS)/makefiles/tweak.mk
