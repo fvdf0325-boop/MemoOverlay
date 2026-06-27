@@ -7,47 +7,20 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: macos-13
 
     steps:
     - name: 저장소 체크아웃
       uses: actions/checkout@v4
 
-    - name: 의존성 설치
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y curl git make perl unzip zip fakeroot
-
     - name: Theos 설치
       run: |
+        brew install ldid xz
         sudo mkdir -p /opt/theos
         sudo chown $USER /opt/theos
         git clone --recursive https://github.com/theos/theos.git /opt/theos
         echo "THEOS=/opt/theos" >> $GITHUB_ENV
         echo "/opt/theos/bin" >> $GITHUB_PATH
-
-    - name: ldid 설치
-      run: |
-        curl -L -o /tmp/ldid https://github.com/ProcursusTeam/ldid/releases/latest/download/ldid_linux_x86_64
-        chmod +x /tmp/ldid
-        sudo mv /tmp/ldid /usr/local/bin/ldid
-
-    - name: iOS 크로스컴파일 툴체인 설치
-      run: |
-        mkdir -p /opt/theos/toolchain/linux/iphone/bin
-        # Procursus 리눅스용 clang 툴체인
-        curl -L -o /tmp/toolchain.tar.xz \
-          https://github.com/CRKatri/llvm-project/releases/download/swift-5.3.2-RELEASE/swift-5.3.2-RELEASE-ubuntu20.04.tar.xz
-        tar -xf /tmp/toolchain.tar.xz -C /tmp
-        # clang을 theos 툴체인 경로에 심볼릭 링크
-        CLANG_BIN=$(find /tmp/swift-5.3.2-RELEASE-ubuntu20.04/usr/bin -name "clang" | head -1)
-        ln -sf $CLANG_BIN /opt/theos/toolchain/linux/iphone/bin/clang
-        ln -sf $CLANG_BIN /opt/theos/toolchain/linux/iphone/bin/clang++
-        # 나머지 필요 바이너리 링크
-        for tool in ar nm ranlib strip; do
-          SRC=$(find /tmp/swift-5.3.2-RELEASE-ubuntu20.04/usr/bin -name "$tool" | head -1)
-          [ -n "$SRC" ] && ln -sf $SRC /opt/theos/toolchain/linux/iphone/bin/$tool
-        done
 
     - name: iOS SDK 설치
       run: |
