@@ -16,7 +16,15 @@ jobs:
     - name: 의존성 설치
       run: |
         sudo apt-get update
-        sudo apt-get install -y curl git make perl unzip zip fakeroot
+        sudo apt-get install -y curl git make perl unzip zip fakeroot \
+          clang-15 lld-15 libtinfo5
+
+    - name: clang 심볼릭 링크
+      run: |
+        sudo ln -sf /usr/bin/clang-15 /usr/local/bin/clang
+        sudo ln -sf /usr/bin/clang++-15 /usr/local/bin/clang++
+        sudo ln -sf /usr/bin/lld-15 /usr/local/bin/lld
+        sudo ln -sf /usr/bin/ld.lld-15 /usr/local/bin/ld.lld
 
     - name: Theos 설치
       run: |
@@ -28,17 +36,10 @@ jobs:
 
     - name: ldid 설치
       run: |
-        curl -L -o /tmp/ldid https://github.com/ProcursusTeam/ldid/releases/latest/download/ldid_linux_x86_64
+        curl -L -o /tmp/ldid \
+          https://github.com/ProcursusTeam/ldid/releases/latest/download/ldid_linux_x86_64
         chmod +x /tmp/ldid
         sudo mv /tmp/ldid /usr/local/bin/ldid
-
-    - name: Theos 툴체인 설치 (clang)
-      run: |
-        curl -L -o /tmp/toolchain.tar.gz \
-          https://github.com/kabiroberai/swift-toolchain-linux/releases/download/v2.3.0/toolchain-linux.tar.gz \
-          || curl -L -o /tmp/toolchain.tar.gz \
-          https://github.com/theos/toolchain/releases/latest/download/toolchain-linux.tar.gz
-        sudo tar -xf /tmp/toolchain.tar.gz -C /opt/theos
 
     - name: iOS SDK 설치
       run: |
@@ -47,6 +48,12 @@ jobs:
         git clone --depth=1 https://github.com/theos/sdks.git theos-sdks
         mv theos-sdks/iPhoneOS16.5.sdk /opt/theos/sdks/
         rm -rf theos-sdks
+
+    - name: Theos 툴체인 경로 설정
+      run: |
+        mkdir -p /opt/theos/toolchain/linux/iphone/bin
+        sudo ln -sf /usr/bin/clang-15 /opt/theos/toolchain/linux/iphone/bin/clang
+        sudo ln -sf /usr/bin/clang++-15 /opt/theos/toolchain/linux/iphone/bin/clang++
 
     - name: 파일 확인
       run: ls -la
