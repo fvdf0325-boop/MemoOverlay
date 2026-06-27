@@ -2,7 +2,8 @@ name: Build MemoOverlay Tweak
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -16,30 +17,32 @@ jobs:
       - name: Install Homebrew packages
         run: |
           brew update
-          brew install ldid dpkg
+          brew install ldid dpkg make
 
       - name: Install Theos
         run: |
-          git clone --recursive https://github.com/theos/theos.git /opt/theos
-          echo "THEOS=/opt/theos" >> $GITHUB_ENV
-          echo "/opt/theos/bin" >> $GITHUB_PATH
+          git clone --recursive https://github.com/theos/theos.git $HOME/theos
+          echo "THEOS=$HOME/theos" >> $GITHUB_ENV
+          echo "$HOME/theos/bin" >> $GITHUB_PATH
 
       - name: Install iOS SDK
         run: |
-          mkdir -p /opt/theos/sdks
+          mkdir -p $HOME/theos/sdks
           git clone --depth=1 https://github.com/theos/sdks.git /tmp/theos-sdks
-          cp -R /tmp/theos-sdks/*.sdk /opt/theos/sdks/
+          cp -R /tmp/theos-sdks/*.sdk $HOME/theos/sdks/
           rm -rf /tmp/theos-sdks
 
-      - name: Check Environment
+      - name: Verify Environment
         run: |
+          echo "THEOS=$THEOS"
           clang --version
           xcode-select -p
-          ls /opt/theos/sdks
+          ls -la $HOME/theos
+          ls -la $HOME/theos/sdks
 
       - name: Build
         env:
-          THEOS: /opt/theos
+          THEOS: ${{ env.THEOS }}
         run: |
           make clean
           make package FINALPACKAGE=1
@@ -49,3 +52,4 @@ jobs:
         with:
           name: MemoOverlay-deb
           path: packages/*.deb
+          if-no-files-found: error
