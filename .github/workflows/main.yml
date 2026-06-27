@@ -1,55 +1,71 @@
 name: Build MemoOverlay Tweak
 
 on:
- push:
-   branches: [ main ]
- workflow_dispatch:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
- build:
-   runs-on: ubuntu-latest
+  build:
+    runs-on: ubuntu-latest
 
-   steps:
-   - name: 저장소 체크아웃
-     uses: actions/checkout@v4
+    steps:
+    - name: 저장소 체크아웃
+      uses: actions/checkout@v4
 
-   - name: 의존성 설치
-     run: |
-       sudo apt-get update
-       sudo apt-get install -y curl git make perl unzip zip clang lld fakeroot
+    - name: 의존성 설치
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y curl git make perl unzip zip fakeroot
 
-   - name: Theos 설치
-     run: |
-       sudo mkdir -p /opt/theos
-       sudo chown $USER /opt/theos
-       git clone --recursive https://github.com/theos/theos.git /opt/theos
-       echo "THEOS=/opt/theos" >> $GITHUB_ENV
-       echo "/opt/theos/bin" >> $GITHUB_PATH
+    - name: Theos 설치
+      run: |
+        sudo mkdir -p /opt/theos
+        sudo chown $USER /opt/theos
+        git clone --recursive https://github.com/theos/theos.git /opt/theos
+        echo "THEOS=/opt/theos" >> $GITHUB_ENV
+        echo "/opt/theos/bin" >> $GITHUB_PATH
 
-   - name: ldid 설치
-     run: |
-       curl -L -o /tmp/ldid https://github.com/ProcursusTeam/ldid/releases/latest/download/ldid_linux_x86_64
-       chmod +x /tmp/ldid
-       sudo mv /tmp/ldid /usr/local/bin/ldid
-       ldid 2>/dev/null || true
+    - name: ldid 설치
+      run: |
+        curl -L -o /tmp/ldid https://github.com/ProcursusTeam/ldid/releases/latest/download/ldid_linux_x86_64
+        chmod +x /tmp/ldid
+        sudo mv /tmp/ldid /usr/local/bin/ldid
 
-   - name: iOS SDK 설치
-     run: |
-       mkdir -p /opt/theos/sdks
-       cd /tmp
-       git clone --depth=1 https://github.com/theos/sdks.git theos-sdks
-       mv theos-sdks/iPhoneOS16.5.sdk /opt/theos/sdks/
-       rm -rf theos-sdks
+    - name: iOS 크로스컴파일 툴체인 설치
+      run: |
+        mkdir -p /opt/theos/toolchain/linux/iphone/bin
+        # Procursus 리눅스용 clang 툴체인
+        curl -L -o /tmp/toolchain.tar.xz \
+          https://github.com/CRKatri/llvm-project/releases/download/swift-5.3.2-RELEASE/swift-5.3.2-RELEASE-ubuntu20.04.tar.xz
+        tar -xf /tmp/toolchain.tar.xz -C /tmp
+        # clang을 theos 툴체인 경로에 심볼릭 링크
+        CLANG_BIN=$(find /tmp/swift-5.3.2-RELEASE-ubuntu20.04/usr/bin -name "clang" | head -1)
+        ln -sf $CLANG_BIN /opt/theos/toolchain/linux/iphone/bin/clang
+        ln -sf $CLANG_BIN /opt/theos/toolchain/linux/iphone/bin/clang++
+        # 나머지 필요 바이너리 링크
+        for tool in ar nm ranlib strip; do
+          SRC=$(find /tmp/swift-5.3.2-RELEASE-ubuntu20.04/usr/bin -name "$tool" | head -1)
+          [ -n "$SRC" ] && ln -sf $SRC /opt/theos/toolchain/linux/iphone/bin/$tool
+        done
 
-   - name: 빌드
-     run: |
-       export THEOS=/opt/theos
-       export THEOS_MAKE_PATH=/opt/theos/makefiles
-       make package FINALPACKAGE=1 2>&1
+    - name: iOS SDK 설치
+      run: |
+        mkdir -p /opt/theos/sdks
+        cd /tmp
+        git clone --depth=1 https://github.com/theos/sdks.git theos-sdks
+        mv theos-sdks/iPhoneOS16.5.sdk /opt/theos/sdks/
+        rm -rf theos-sdks
 
-   - name: .deb 아티팩트 업로드
-     uses: actions/upload-artifact@v4
-     with:
-       name: MemoOverlay-deb
-       path: packages/*.deb
-       if-no-files-found: error
+    - name: 빌드
+      run: |
+        export THEOS=/opt/theos
+        export THEOS_MAKE_PATH=/opt/theos/makefiles
+        make package FINALPACKAGE=1 2>&1
+
+    - name: .deb 아티팩트 업로드
+      uses: actions/upload-artifact@v4
+      with:
+        name: MemoOverlay-deb
+        path: packages/*.deb
+        if-no-files-found: error
