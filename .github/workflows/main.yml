@@ -7,62 +7,45 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: macos-14
 
     steps:
-    - name: 저장소 체크아웃
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: 의존성 설치
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y curl git make perl unzip zip fakeroot dpkg
+      - name: Install Homebrew packages
+        run: |
+          brew update
+          brew install ldid dpkg
 
-    - name: Theos + 툴체인 한번에 설치
-      run: |
-        sudo mkdir -p /opt/theos
-        sudo chown $USER /opt/theos
-        git clone --recursive https://github.com/theos/theos.git /opt/theos
-        echo "THEOS=/opt/theos" >> $GITHUB_ENV
-        echo "/opt/theos/bin" >> $GITHUB_PATH
+      - name: Install Theos
+        run: |
+          git clone --recursive https://github.com/theos/theos.git /opt/theos
+          echo "THEOS=/opt/theos" >> $GITHUB_ENV
+          echo "/opt/theos/bin" >> $GITHUB_PATH
 
-    - name: ldid 설치
-      run: |
-        curl -L -o /tmp/ldid \
-          https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus7/ldid_linux_x86_64
-        chmod +x /tmp/ldid
-        sudo mv /tmp/ldid /usr/local/bin/ldid
+      - name: Install iOS SDK
+        run: |
+          mkdir -p /opt/theos/sdks
+          git clone --depth=1 https://github.com/theos/sdks.git /tmp/theos-sdks
+          cp -R /tmp/theos-sdks/*.sdk /opt/theos/sdks/
+          rm -rf /tmp/theos-sdks
 
-    - name: iOS 크로스컴파일 툴체인 설치
-      run: |
-        mkdir -p /opt/theos/toolchain/linux/iphone/bin
-        # Procursus 공식 toolchain
-        curl -L -o /tmp/tc.tar.gz \
-          https://github.com/kabiroberai/swift-toolchain-linux/releases/download/v2.3.0/toolchain-linux-ubuntu20.tar.gz
-        tar -xf /tmp/tc.tar.gz -C /opt/theos/toolchain/linux/iphone --strip-components=1
-        rm /tmp/tc.tar.gz
+      - name: Check Environment
+        run: |
+          clang --version
+          xcode-select -p
+          ls /opt/theos/sdks
 
-    - name: iOS SDK 설치
-      run: |
-        mkdir -p /opt/theos/sdks
-        git clone --depth=1 https://github.com/theos/sdks.git /tmp/theos-sdks
-        mv /tmp/theos-sdks/iPhoneOS16.5.sdk /opt/theos/sdks/
-        rm -rf /tmp/theos-sdks
+      - name: Build
+        env:
+          THEOS: /opt/theos
+        run: |
+          make clean
+          make package FINALPACKAGE=1
 
-    - name: 툴체인 확인
-      run: |
-        ls /opt/theos/toolchain/linux/iphone/bin/
-        /opt/theos/toolchain/linux/iphone/bin/clang --version
-
-    - name: 빌드
-      run: |
-        export THEOS=/opt/theos
-        export THEOS_MAKE_PATH=/opt/theos/makefiles
-        make package FINALPACKAGE=1 2>&1
-
-    - name: .deb 아티팩트 업로드
-      uses: actions/upload-artifact@v4
-      with:
-        name: MemoOverlay-deb
-        path: packages/*.deb
-        if-no-files-found: error
+      - name: Upload Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: MemoOverlay-deb
+          path: packages/*.deb
