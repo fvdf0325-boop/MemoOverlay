@@ -2,7 +2,7 @@
 # THEOS_DEVICE_PORT = 22
 
 ARCHS = arm64 arm64e
-TARGET = iphone:clang:16.0:14.0
+TARGET = iphone:clang:16.5:16.0
 
 include $(THEOS)/makefiles/common.mk
 
