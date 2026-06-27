@@ -1,52 +1,55 @@
 name: Build MemoOverlay Tweak
 
 on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
+ push:
+   branches: [ main ]
+ workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+ build:
+   runs-on: ubuntu-latest
 
-    steps:
-    - name: 저장소 체크아웃
-      uses: actions/checkout@v4
+   steps:
+   - name: 저장소 체크아웃
+     uses: actions/checkout@v4
 
-    - name: 의존성 설치
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y curl git make perl unzip zip clang lld
+   - name: 의존성 설치
+     run: |
+       sudo apt-get update
+       sudo apt-get install -y curl git make perl unzip zip clang lld fakeroot
 
-    - name: Theos 설치
-      run: |
-        sudo mkdir -p /opt/theos
-        sudo chown $USER /opt/theos
-        git clone --recursive https://github.com/theos/theos.git /opt/theos
-        echo "THEOS=/opt/theos" >> $GITHUB_ENV
-        echo "/opt/theos/bin" >> $GITHUB_PATH
+   - name: Theos 설치
+     run: |
+       sudo mkdir -p /opt/theos
+       sudo chown $USER /opt/theos
+       git clone --recursive https://github.com/theos/theos.git /opt/theos
+       echo "THEOS=/opt/theos" >> $GITHUB_ENV
+       echo "/opt/theos/bin" >> $GITHUB_PATH
 
-    - name: ldid 설치
-      run: |
-        curl -LO https://github.com/xerub/ldid/releases/latest/download/ldid_linux_x86_64
-        chmod +x ldid_linux_x86_64
-        sudo mv ldid_linux_x86_64 /usr/local/bin/ldid
+   - name: ldid 설치
+     run: |
+       curl -L -o /tmp/ldid https://github.com/ProcursusTeam/ldid/releases/latest/download/ldid_linux_x86_64
+       chmod +x /tmp/ldid
+       sudo mv /tmp/ldid /usr/local/bin/ldid
+       ldid 2>/dev/null || true
 
-    - name: iOS 16.5 SDK 설치
-      run: |
-        mkdir -p /opt/theos/sdks
-        cd /opt/theos/sdks
-        curl -L -o sdk.tar.xz https://github.com/theos/sdks/releases/download/master/iPhoneOS16.5.sdk.tar.xz
-        tar -xf sdk.tar.xz
-        rm sdk.tar.xz
+   - name: iOS SDK 설치
+     run: |
+       mkdir -p /opt/theos/sdks
+       cd /tmp
+       git clone --depth=1 https://github.com/theos/sdks.git theos-sdks
+       mv theos-sdks/iPhoneOS16.5.sdk /opt/theos/sdks/
+       rm -rf theos-sdks
 
-    - name: 빌드
-      run: |
-        export THEOS=/opt/theos
-        make package FINALPACKAGE=1
+   - name: 빌드
+     run: |
+       export THEOS=/opt/theos
+       export THEOS_MAKE_PATH=/opt/theos/makefiles
+       make package FINALPACKAGE=1 2>&1
 
-    - name: .deb 아티팩트 업로드
-      uses: actions/upload-artifact@v4
-      with:
-        name: MemoOverlay-deb
-        path: packages/*.deb
+   - name: .deb 아티팩트 업로드
+     uses: actions/upload-artifact@v4
+     with:
+       name: MemoOverlay-deb
+       path: packages/*.deb
+       if-no-files-found: error
